@@ -22,9 +22,9 @@ The real estate market is highly dynamic, influenced by economic policies, inter
 
 # 📊 Data Sources
 
-- Zillow Housing Data{https://www.zillow.com/research/data/}
-- Federal Reserve Economic Data{https://fred.stlouisfed.org/}
-- IRS Historical Data{
+- **[Zillow Housing Data](https://www.zillow.com/research/data/)**
+- **[Federal Reserve Economic Data](https://fred.stlouisfed.org/)**
+- **[IRS Historical Data](https://www.irs.gov/statistics)**
 
 ---
 
