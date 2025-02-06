@@ -1,0 +1,41 @@
+---
+title: "ITEC 621 Project"
+author: 
+  - name: "Ledia Dobi"
+    affiliation: "American University"
+    email: "your.email@american.edu"
+  - name: "Conie O'Malley"
+    affiliation: "American University"
+    email: "co1984a@american.edu"
+date: "`r Sys.Date()`"
+format: 
+  html:
+    theme: cosmo # Use a Bootswatch theme for consistent styling
+    highlight-style: github # Syntax highlighting style
+    toc: true
+    toc-depth: 4
+    number-sections: true # Number the heading sections
+    embed-resources: true
+    fig-width: 6 # Default figure width in inches
+    fig-height: 4 # Default figure height in inches
+    df-print: paged
+#    css: styles.css # Custom styling
+#    include-after-body: footer.html # Custom footer
+---
+
+```{r}
+# library chunk
+
+```
+
+## Business Question
+
+## Analytics Question 
+
+## Data Preparation
+
+## Modeling
+
+## Analysis
+
+## Conclusion
