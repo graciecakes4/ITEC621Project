@@ -3,7 +3,7 @@ title: "ITEC 621 Project"
 author: 
   - name: "Ledia Dobi"
     affiliation: "American University"
-    email: "your.email@american.edu"
+    email: "ld5469a@american.edu"
   - name: "Conie O'Malley"
     affiliation: "American University"
     email: "co1984a@american.edu"
