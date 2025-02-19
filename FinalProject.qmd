@@ -25,6 +25,8 @@ format:
 
 ```{r libraries}
 # library chunk
+#install.packages("dplyr")
+#install.packages("readr")
 library(dplyr)
 library(readr)
 ```
