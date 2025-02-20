@@ -27,14 +27,51 @@ format:
 # library chunk
 #install.packages("dplyr")
 #install.packages("readr")
+#install.packages("tidyverse")
 library(dplyr)
 library(readr)
+library(tidyverse)
 ```
 
 ```{r data import}
+# import data sets
 median_sale_price <- readr::read_csv("data/Metro_median_sale_price_uc_sfr_month.csv")
 new_construction_sales <- readr::read_csv("data/Metro_new_con_sales_count_raw_uc_sfr_month.csv")
 mean_sfr_value <- readr::read_csv("data/Metro_zhvi_uc_sfr_tier_0.33_0.67_sm_sa_month.csv")
+```
+
+```{r data cleaning}
+# remove columns and pivot longer
+ny_median_sale_price <- median_sale_price %>% 
+  dplyr::filter(RegionName == "New York, NY") %>% 
+  dplyr::select(-RegionID, -SizeRank, -RegionType, -StateName) %>% 
+  tidyr::pivot_longer(cols = -RegionName,
+    names_to = "Date",
+    values_to = "median_sale_price"
+  )
+
+ny_new_construction_sales <- new_construction_sales %>% 
+  dplyr::filter(RegionName == "New York, NY") %>% 
+  dplyr::select(-RegionID, -SizeRank, -RegionType, -StateName) %>% 
+  tidyr::pivot_longer(cols = -RegionName,
+    names_to = "Date",
+    values_to = "new_construction_sales"
+  ) %>% 
+    dplyr::select(-RegionName)
+
+ny_mean_sfr_value <- mean_sfr_value %>% 
+  dplyr::filter(RegionName == "New York, NY") %>% 
+  dplyr::select(-RegionID, -SizeRank, -RegionType, -StateName) %>% 
+  tidyr::pivot_longer(cols = -RegionName,
+    names_to = "Date",
+    values_to = "mean_sfr_value"
+  ) %>% 
+    dplyr::select(-RegionName)
+
+# join data sets
+ny_housing_data <- ny_median_sale_price %>% 
+  dplyr::left_join(ny_new_construction_sales, by = "Date") %>% 
+  dplyr::left_join(ny_mean_sfr_value, by = "Date")
 ```
 
 ## Business Question
