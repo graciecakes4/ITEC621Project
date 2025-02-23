@@ -31,6 +31,7 @@ format:
 library(dplyr)
 library(readr)
 library(tidyverse)
+library(lmtest)
 ```
 
 ```{r data import}
@@ -72,11 +73,51 @@ ny_mean_sfr_value <- mean_sfr_value %>%
 ny_housing_data <- ny_median_sale_price %>% 
   dplyr::left_join(ny_new_construction_sales, by = "Date") %>% 
   dplyr::left_join(ny_mean_sfr_value, by = "Date")
+
+# Convert Date from character to Date class
+ny_housing_data$Date <- as.Date(ny_housing_data$Date)
+
+# get rid of NA values
+ny_housing_data_clean <- na.omit(ny_housing_data)
 ```
 
-## Business Question
 
-## Analytics Question 
+```{r descriptive_analytics}
+
+#qqplot and histogram for residuals
+options(scipen=4)
+lm.fit <- lm(median_sale_price ~ Date + new_construction_sales + mean_sfr_value, 
+             data = ny_housing_data_clean)
+par(mar=c(4,4,2,2))
+plot(lm.fit, which = 2)
+hist(lm.fit$residuals)
+
+#heteroskedasticity check
+plot(lm.fit$residuals ~ lm.fit$fitted.values, main = "Heteroskedastic Residuals", xlab = "Predicted Values", ylab = "Residuals")
+abline(h=0, col="red")
+
+#residuals vs fitted plot
+plot(lm.fit, which = 1)
+
+#checking for serial correlation
+dwtest(lm.fit)
+
+```
+
+## Descriptive Analytics 
+We can see from the qqplot that the data deviates from the qqline. It is somewhat following, but deviates around -0.5 and 0, and again, from 1 and onwards.As the Standardized residuals increase, the deviation becomes more apparent. Looking at the histogram, it seems that it skews to the left. Based on these two plots, I would conclude that the residuals are not normally distributed.
+
+The "Heteroskedastic Residuals" plot clearly shows heteroskedasticity is present in our data. When plotting Residuals vs Fitted, it clearly is not homoskedastic, and the wave indicates a cyclical pattern, which makes sense since we have time series data.
+
+Now, it seems clear that our OLS assumptions do not hold, and we have a problem with heteroskedasticity -- most likely related to the fact that we have time series data. We must check for serial correlation. We use the Durbin Watson test here, and find that the DW statistic is 0.58559 and the p value is much smaller than 0.05. Since our DW stat is close to 0, that means we have extreme positive serial correlation. We must correct by lagging. 
+
+## Define an initial set of predictors
+
+Our initial set of predictors will include: Date, end of the month for every month from 2018 to November 2024; Median Sale Price, New Construction Sales, and Mean SFR value (Single Family Residence). We will focus on building our model using data from the New York, New York region.
+
+## OLS or Logistic Regression
+
+Since we have concluded that our data suffers from serial correlation, we must transform our variables and lag the data. Therefore, we will use logistic regression to build our model.
 
 ## Data Preparation
 
