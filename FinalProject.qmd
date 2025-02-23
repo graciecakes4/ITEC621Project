@@ -119,7 +119,40 @@ Our initial set of predictors will include: Date, end of the month for every mon
 
 Since we have concluded that our data suffers from serial correlation, we must transform our variables and lag the data. Therefore, we will use logistic regression to build our model.
 
+```{r lagging to correct for serial correlation}
+
+#create lagged variables
+
+ny_housing_data_clean <- ny_housing_data_clean %>%
+  arrange(Date) %>%
+  mutate(
+    Date.L6 = Date %m+% months(-6),  # Lag by 6 months
+    Date.L12 = Date %m+% months(-12) # Lag by 12 months
+  )
+
+#regression with lagged variables
+fit.lag <- lm(median_sale_price ~ Date + Date.L6 + Date.L12 + new_construction_sales + mean_sfr_value, data = ny_housing_data_clean)
+
+summary(fit.lag)
+
+```
+## Transformation in Preparation for a Regression
+
+It seems that lagging by 6 months is not significant, but a 12 month lag (1 year) is significant. We should check if the serial correlation problem is corrected.
+
+```{r check for serial correlation correction}
+
+plot(ny_housing_data_clean$Date[13:nrow(ny_housing_data_clean)],
+     fit.lag$residuals[13:length(fit.lag$residuals)],
+     xlab = "Date",
+     ylab = "Residuals")
+abline(0,0, col="red")
+
+dwtest(fit.lag)
+```
 ## Data Preparation
+
+From preliminary inspection of the plot, it does not seem that the serial correlation problem has been resolved. The DW test also still confirms that we have positive serial correlation, as it is closer to 0-1 than it is to 2.
 
 ## Modeling
 
