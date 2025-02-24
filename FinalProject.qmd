@@ -28,10 +28,12 @@ format:
 #install.packages("dplyr")
 #install.packages("readr")
 #install.packages("tidyverse")
+#install.packages("lubridate")
 library(dplyr)
 library(readr)
 library(tidyverse)
 library(lmtest)
+library(lubridate)
 ```
 
 ```{r data import}
@@ -39,40 +41,154 @@ library(lmtest)
 median_sale_price <- readr::read_csv("data/Metro_median_sale_price_uc_sfr_month.csv")
 new_construction_sales <- readr::read_csv("data/Metro_new_con_sales_count_raw_uc_sfr_month.csv")
 mean_sfr_value <- readr::read_csv("data/Metro_zhvi_uc_sfr_tier_0.33_0.67_sm_sa_month.csv")
+interest_rates <- readr::read_csv("data/fed_interest_rates.csv")
+mortgage_rate_15_year <- readr::read_csv("data/mortgage_rates_15_year.csv")
+mortgage_rate_30_year <- readr::read_csv("data/mortgage_rates_30_year.csv")
+ny_median_household_income <- readr::read_csv("data/new_york_median_household_income.csv")
+national_median_household_income <- readr::read_csv("data/national_median_household_income.csv")
 ```
 
-```{r data cleaning}
+```{r housing data cleaning}
 # remove columns and pivot longer
 ny_median_sale_price <- median_sale_price %>% 
   dplyr::filter(RegionName == "New York, NY") %>% 
   dplyr::select(-RegionID, -SizeRank, -RegionType, -StateName) %>% 
   tidyr::pivot_longer(cols = -RegionName,
     names_to = "Date",
-    values_to = "median_sale_price"
-  )
+    values_to = "median_sale_price") %>% 
+  dplyr::mutate(
+    Date = as.Date(Date, "%Y-%m-%d"), 
+    Date = lubridate::floor_date(Date, "month"))
 
 ny_new_construction_sales <- new_construction_sales %>% 
   dplyr::filter(RegionName == "New York, NY") %>% 
   dplyr::select(-RegionID, -SizeRank, -RegionType, -StateName) %>% 
   tidyr::pivot_longer(cols = -RegionName,
     names_to = "Date",
-    values_to = "new_construction_sales"
-  ) %>% 
-    dplyr::select(-RegionName)
+    values_to = "new_construction_sales") %>% 
+  dplyr::select(-RegionName) %>% 
+  dplyr::mutate(
+    Date = as.Date(Date, "%Y-%m-%d"), 
+    Date = lubridate::floor_date(Date, "month"))
 
 ny_mean_sfr_value <- mean_sfr_value %>% 
   dplyr::filter(RegionName == "New York, NY") %>% 
   dplyr::select(-RegionID, -SizeRank, -RegionType, -StateName) %>% 
   tidyr::pivot_longer(cols = -RegionName,
     names_to = "Date",
-    values_to = "mean_sfr_value"
-  ) %>% 
-    dplyr::select(-RegionName)
+    values_to = "mean_sfr_value") %>% 
+  dplyr::select(-RegionName) %>% 
+  dplyr::mutate(
+    Date = as.Date(Date, "%Y-%m-%d"), 
+    Date = lubridate::floor_date(Date, "month"))
+```
 
+
+```{r financial data cleaning}
+# rename date and variable columns
+interest_rates <- interest_rates %>% 
+  dplyr::rename(Date = observation_date, Fed_Interest_Rate = FEDFUNDS) %>% 
+  dplyr::mutate(Date = as.Date(Date, format = "%Y-%m-%d"))
+
+# adjust date column
+mortgage_rate_15_year <- mortgage_rate_15_year %>% 
+  dplyr::rename(Date = observation_date, mortgage_rate_15_year = MORTGAGE15US) %>% 
+  dplyr::mutate(Date = as.Date(Date, format = "%Y-%m-%d"))
+
+# calculate monthly average interest rates - weekly data was provided
+# converted to monthly average for analysis
+monthly_avg_15_year <- mortgage_rate_15_year %>% 
+  dplyr::mutate(YearMonth = lubridate::floor_date(Date, "month")) %>% 
+  dplyr::group_by(YearMonth) %>% 
+  dplyr::summarise(monthly_avg_15_year = mean(mortgage_rate_15_year, na.rm = TRUE)) %>% 
+  dplyr::mutate(Date = as.Date(format(YearMonth, "%Y-%m-01"), format = "%Y-%m-%d")) %>% 
+  dplyr::select(Date, monthly_avg_15_year)
+
+# date debugging - there was a problem in merging data sets, more date formatting was 
+# required to fix issues
+mortgage_rate_15_year <- mortgage_rate_15_year %>%
+  tidyr::complete(Date = seq(min(interest_rates$Date), 
+                            max(interest_rates$Date), by = "month")) %>%
+  tidyr::fill(everything(), .direction = "down")
+
+# adjust date column
+mortgage_rate_30_year <- mortgage_rate_30_year %>% 
+  dplyr::rename(Date = observation_date, mortgage_rate_30_year = MORTGAGE30US) %>% 
+  dplyr::mutate(Date = as.Date(Date, format = "%Y-%m-%d"))
+
+# calculate monthly average interest rates - weekly data was provided
+# converted to monthly average for analysis
+monthly_avg_30_year <- mortgage_rate_30_year %>% 
+  dplyr::mutate(YearMonth = lubridate::floor_date(Date, "month")) %>% 
+  dplyr::group_by(YearMonth) %>% 
+  dplyr::summarise(monthly_avg_30_year = mean(mortgage_rate_30_year, na.rm = TRUE)) %>% 
+  dplyr::mutate(Date = as.Date(format(YearMonth, "%Y-%m-01"), format = "%Y-%m-%d")) %>% 
+  dplyr::select(Date, monthly_avg_30_year)
+
+# date debugging - there was a problem in merging data sets, more date formatting was 
+# required to fix issues
+mortgage_rate_30_year <- mortgage_rate_30_year %>%
+  tidyr::complete(Date = seq(min(interest_rates$Date), 
+                            max(interest_rates$Date), by = "month")) %>%
+  tidyr::fill(everything(), .direction = "down")
+
+# adjust date column
+ny_median_household_income <- ny_median_household_income %>% 
+  dplyr::rename(Date = observation_date, ny_median_hh_income = MEHOINUSNYA672N) %>% 
+  dplyr::mutate(Date = as.Date(Date, format = "%Y-%m-%d"))
+
+# distribute yearly data down to individual months for analysis purposes
+# assign yearly values and grouping
+ny_median_household_income_yearly <- ny_median_household_income %>%
+  dplyr::mutate(Year = lubridate::year(Date)) %>% 
+  dplyr::select(Year, ny_median_hh_income) %>% 
+  dplyr::group_by(Year) %>% 
+  dplyr::summarise(ny_median_hh_income = dplyr::first(ny_median_hh_income), 
+                  .groups = 'drop') 
+
+# adjust to monthly and join financial data back                   
+ny_median_household_income_monthly <- tidyr::expand_grid(
+  Year = ny_median_household_income_yearly$Year,
+  Month = 1:12) %>% 
+  dplyr::left_join(ny_median_household_income_yearly, by = "Year") %>% 
+  dplyr::mutate(Date = as.Date(sprintf("%d-%02d-01", Year, Month))) %>% 
+  dplyr::select(Date, ny_median_hh_income) %>% 
+  dplyr::arrange(Date)
+
+# adjust date column
+national_median_household_income <- national_median_household_income %>% 
+  dplyr::rename(Date = observation_date, national_median_hh_income = MEHOINUSA646N) %>% 
+  dplyr::mutate(Date = as.Date(Date, format = "%Y-%m-%d"))
+
+# distribute yearly data down to individual months for analysis purposes
+# assign yearly values and grouping
+national_median_household_income_yearly <- national_median_household_income %>%
+  dplyr::mutate(Year = lubridate::year(Date)) %>% 
+  dplyr::select(Year, national_median_hh_income) %>% 
+  dplyr::group_by(Year) %>% 
+  dplyr::summarise(national_median_hh_income = dplyr::first(national_median_hh_income), 
+                  .groups = 'drop') 
+
+# adjust to monthly and join financial data back               
+national_median_household_income_monthly <- tidyr::expand_grid(
+  Year = national_median_household_income_yearly$Year,
+  Month = 1:12) %>% 
+  dplyr::left_join(national_median_household_income_yearly, by = "Year") %>% 
+  dplyr::mutate(Date = as.Date(sprintf("%d-%02d-01", Year, Month))) %>% 
+  dplyr::select(Date, national_median_hh_income) %>% 
+  dplyr::arrange(Date)
+```
+
+```{r data join}
 # join data sets
 ny_housing_data <- ny_median_sale_price %>% 
   dplyr::left_join(ny_new_construction_sales, by = "Date") %>% 
-  dplyr::left_join(ny_mean_sfr_value, by = "Date")
+  dplyr::left_join(ny_mean_sfr_value, by = "Date") %>% 
+  dplyr::left_join(interest_rates, by = "Date") %>% 
+  dplyr::left_join(mortgage_rate_15_year, by = "Date") %>% 
+  dplyr::left_join(mortgage_rate_30_year, by = "Date") %>% 
+  dplyr::left_join(ny_median_household_income_monthly, by = "Date") %>% 
+  dplyr::left_join(national_median_household_income_monthly, by = "Date")
 
 # Convert Date from character to Date class
 ny_housing_data$Date <- as.Date(ny_housing_data$Date)
