@@ -202,7 +202,7 @@ ny_housing_data_clean <- na.omit(ny_housing_data)
 
 #qqplot and histogram for residuals
 options(scipen=4)
-lm.fit <- lm(median_sale_price ~ Date + new_construction_sales + mean_sfr_value, 
+lm.fit <- lm(median_sale_price ~ Date + new_construction_sales + mean_sfr_value + Fed_Interest_Rate + mortgage_rate_15_year + mortgage_rate_30_year + ny_median_hh_income + national_median_hh_income, 
              data = ny_housing_data_clean)
 par(mar=c(4,4,2,2))
 plot(lm.fit, which = 2)
@@ -221,15 +221,15 @@ dwtest(lm.fit)
 ```
 
 ## Descriptive Analytics 
-We can see from the qqplot that the data deviates from the qqline. It is somewhat following, but deviates around -0.5 and 0, and again, from 1 and onwards.As the Standardized residuals increase, the deviation becomes more apparent. Looking at the histogram, it seems that it skews to the left. Based on these two plots, I would conclude that the residuals are not normally distributed.
+We can see from the qqplot that the data deviates from the qqline. It is somewhat following the line from about -0.8 to 1, but deviates at each end. At the lowest and upper ends of the Standardized residuals, the deviation becomes more apparent. Looking at the histogram, it seems that it skews to the right slightly. Based on these two plots, I would conclude that the residuals are not normally distributed.
 
 The "Heteroskedastic Residuals" plot clearly shows heteroskedasticity is present in our data. When plotting Residuals vs Fitted, it clearly is not homoskedastic, and the wave indicates a cyclical pattern, which makes sense since we have time series data.
 
-Now, it seems clear that our OLS assumptions do not hold, and we have a problem with heteroskedasticity -- most likely related to the fact that we have time series data. We must check for serial correlation. We use the Durbin Watson test here, and find that the DW statistic is 0.58559 and the p value is much smaller than 0.05. Since our DW stat is close to 0, that means we have extreme positive serial correlation. We must correct by lagging. 
+Now, it seems clear that our OLS assumptions do not hold, and we have a problem with heteroskedasticity -- most likely related to the fact that we have time series data. We must check for serial correlation. We use the Durbin Watson test here, and find that the DW statistic is 0.99041 and the p value is very small. We have positive correlation here; while it is not extreme, it is still concerning and must be corrected.
 
 ## Define an initial set of predictors
 
-Our initial set of predictors will include: Date, end of the month for every month from 2018 to November 2024; Median Sale Price, New Construction Sales, and Mean SFR value (Single Family Residence). We will focus on building our model using data from the New York, New York region.
+Our initial set of predictors will include: Date, end of the month for every month from 2018 to November 2024; Median Sale Price, New Construction Sales, and Mean SFR value (Single Family Residence), Mortgage Rates for 15 years and 30 years, the Federal Interest Rate, NY Median Household Income, and lastly, National Median Household Income. We will focus on building our model using data from the New York, New York region.
 
 ## OLS or Logistic Regression
 
@@ -268,8 +268,7 @@ dwtest(fit.lag)
 ```
 ## Data Preparation
 
-From preliminary inspection of the plot, it does not seem that the serial correlation problem has been resolved. The DW test also still confirms that we have positive serial correlation, as it is closer to 0-1 than it is to 2.
-
+From preliminary inspection of the plot, it does not seem that the serial correlation problem has been resolved. Instead, it seems to have worsened. The DW test also still confirms that we have positive serial correlation.
 ## Modeling
 
 ## Analysis
