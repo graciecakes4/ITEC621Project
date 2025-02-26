@@ -1,0 +1,81 @@
+---
+title: "ITEC 621 Project - Deliverable 2"
+subtitle: "Predicting Median Housing Prices in New York City"
+author: 
+  - name: "Ledia Dobi"
+    affiliation: "American University"
+    email: "ld5469a@american.edu"
+  - name: "Conie O'Malley"
+    affiliation: "American University"
+    email: "co1984a@american.edu"
+date: "`r Sys.Date()`"
+format: 
+  html:
+    theme: cosmo 
+    highlight-style: github 
+    toc: true
+    toc-depth: 4
+    number-sections: true 
+    embed-resources: true
+    fig-width: 6 
+    fig-height: 4
+    df-print: paged
+    code-fold: true
+    #css: styles.css # Custom styling
+    #include-after-body: footer.html # Custom footer
+# bibliography: references.bib 
+# link-citations: true
+# version: "1.0"
+# title-block-style: "block"
+---
+
+# Library and Package installation
+
+In this section we assigned a vector variable of the packages we used for this project. There is a function to check for the packages and install and library them if they are not already installed and libraried.
+
+```{r libraries}
+# library chunk
+required_packages <- c("dplyr", "readr", "tidyverse", "lmtest", "lubridate", "glmnet", "pls", "readxl", "GGally")
+
+# Function to check if a package is installed
+install_and_load <- function(package) {
+  if (!require(package, character.only = TRUE)) {
+    utils::install.packages(package, dependencies = TRUE)
+    library(package, character.only = TRUE)
+  }
+}
+
+for (pkg in required_packages) {
+  install_and_load(pkg)
+}
+```
+
+```{r data import}
+# import cleaned data set
+ny_housing_data_clean <- readr::read_csv("data/ny_housing_data_clean.csv")
+```
+
+```{r eda and linear modeling}
+# plot a reduced lm model
+lm_model <- stats::lm(median_sale_price ~ ., data = ny_housing_data_clean)
+graphics::plot(lm_model, which = 2)
+graphics::hist(lm_model$residuals)
+summary(lm_model)
+
+#heteroskedasticity check
+graphics::plot(lm_model$residuals ~ lm_model$fitted.values, 
+      main = "Heteroskedastic Residuals", 
+      xlab = "Predicted Values", 
+      ylab = "Residuals")
+graphics::abline(h=0, col="red")
+
+#residuals vs fitted plot
+graphics::plot(lm_model, which = 1)
+
+#checking for serial correlation
+lmtest::dwtest(lm_model)
+
+#run ggpairs
+GGally::ggpairs(ny_housing_data_clean)
+
+```
