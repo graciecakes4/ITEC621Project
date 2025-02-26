@@ -311,7 +311,6 @@ reduced_wls_model <- stats::lm(median_sale_price ~., data = ny_housing_data_redu
 
 summary(reduced_wls_model)
 
-
 ```
 
 ```{r reduced stepwise model}
