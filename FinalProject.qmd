@@ -1,5 +1,6 @@
 ---
 title: "ITEC 621 Project"
+subtitle: "Predicting Median Housing Prices in New York City"
 author: 
   - name: "Ledia Dobi"
     affiliation: "American University"
@@ -10,17 +11,22 @@ author:
 date: "`r Sys.Date()`"
 format: 
   html:
-    theme: cosmo # Use a Bootswatch theme for consistent styling
-    highlight-style: github # Syntax highlighting style
+    theme: cosmo 
+    highlight-style: github 
     toc: true
     toc-depth: 4
-    number-sections: true # Number the heading sections
+    number-sections: true 
     embed-resources: true
-    fig-width: 6 # Default figure width in inches
-    fig-height: 4 # Default figure height in inches
+    fig-width: 6 
+    fig-height: 4
     df-print: paged
-#    css: styles.css # Custom styling
-#    include-after-body: footer.html # Custom footer
+    code-fold: true
+    #css: styles.css # Custom styling
+    #include-after-body: footer.html # Custom footer
+# bibliography: references.bib 
+# link-citations: true
+# version: "1.0"
+# title-block-style: "block"
 ---
 
 # Library and Package installation
@@ -29,7 +35,7 @@ In this section we assigned a vector variable of the packages we used for this p
 
 ```{r libraries}
 # library chunk
-required_packages <- c("dplyr", "readr", "tidyverse", "lmtest", "lubridate", "glmnet", "pls", "readxl")
+required_packages <- c("dplyr", "readr", "tidyverse", "lmtest", "lubridate", "glmnet", "pls", "readxl", "GGally")
 
 # Function to check if a package is installed
 install_and_load <- function(package) {
@@ -44,13 +50,15 @@ for (pkg in required_packages) {
 }
 ```
 
-# Data Gathering
+# Data Preparation
+
+## Data Gathering
 
 We gathered our data from the following sources:
 
 -   [Zillow](https://www.zillow.com/research/data/)
--   Median Home Sale Price - New Construction Sales
--   Mean Home Value - Rental Cost Index
+  -   Median Home Sale Price - New Construction Sales
+  -   Mean Home Value - Rental Cost Index
 -   [Federal Reserve](https://fred.stlouisfed.org/)
     -   Federal Reserve Interest Rates
     -   15 Year Mortgage Rates
@@ -82,7 +90,7 @@ major_felonies <- readr::read_csv("data/seven-major-felony-offenses-2000-2024.cs
 unemployment_data <- readr::read_csv("data/unemployment_data.csv")
 ```
 
-# Data Cleaning
+## Data Cleaning
 
 Our data required extensive cleaning and formatting, despite the records being very clean.
 
@@ -310,7 +318,7 @@ unemployment_data <- unemployment_data %>%
 
 ```
 
-# Data Join
+## Dataset Joins
 
 Once our data manipulation was complete, we joined the data set to give us a final count of 14 variables and 300 observations.
 
@@ -387,13 +395,13 @@ ggpairs(ny_housing_data_clean)
 
 ```
 
-## OLS or Logistic Regression
-
-Since we have concluded that our data suffers from serial correlation, we must transform our variables and lag the data. Therefore, we will use logistic regression to build our model.
+# Modeling
 
 ## Model Method 1 - OLS
 
-### Characteristics
+Since we have concluded that our data suffers from serial correlation, we must transform our variables and lag the data. Therefore, we will use logistic regression to build our model. **We need to review this statement**
+
+### Model Characteristics
 
 **Variables Included**
 
@@ -464,7 +472,7 @@ lmtest::dwtest(final_lm_model)
 
 ## Model 2 - WLS Stepwise Regression
 
-### Characteristics
+### Model Characteristics
 
 **Variables Included**
 
@@ -532,7 +540,18 @@ graphics::plot(wls_model_step, which = 1)
 
 ```
 
-# Model 3 - Bootstrap
+## Model 3 - Bootstrap
+
+### Model Characteristics
+
+**Variables Included**
+
+**Variables Excluded**
+
+### Initial Findings
+
+### Challenges and Adjustments
+
 
 ```{r bootsrap model}
 
@@ -544,17 +563,6 @@ graphics::plot(wls_model_step, which = 1)
 ## Transformation in Preparation for a Regression
 
 It seems that lagging by 6 months is not significant, but a 12 month lag (1 year) is significant. We should check if the serial correlation problem is corrected.
-
-```{r check for serial correlation correction}
-
-plot(ny_housing_data_clean$Date[13:nrow(ny_housing_data_clean)],
-     fit.lag$residuals[13:length(fit.lag$residuals)],
-     xlab = "Date",
-     ylab = "Residuals")
-abline(0,0, col="red")
-
-dwtest(fit.lag)
-```
 
 ## Analysis
 
