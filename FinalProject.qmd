@@ -25,7 +25,7 @@ format:
 
 ```{r libraries}
 # library chunk
-required_packages <- c("dplyr", "readr", "tidyverse", "lmtest", "lubridate", "glmnet", "pls")
+required_packages <- c("dplyr", "readr", "tidyverse", "lmtest", "lubridate", "glmnet", "pls", "readxl")
 
 # Function to check if a package is installed
 install_and_load <- function(package) {
@@ -42,14 +42,18 @@ for (pkg in required_packages) {
 
 ```{r data import}
 # import data sets
-median_sale_price <- readr::read_csv("data/Metro_median_sale_price_uc_sfr_month.csv")
+median_sale_price <- readr::read_csv("data/median_sale_price.csv")
 new_construction_sales <- readr::read_csv("data/Metro_new_con_sales_count_raw_uc_sfr_month.csv")
-mean_sfr_value <- readr::read_csv("data/Metro_zhvi_uc_sfr_tier_0.33_0.67_sm_sa_month.csv")
+mean_sfr_value <- readr::read_csv("data/home_value.csv")
 interest_rates <- readr::read_csv("data/fed_interest_rates.csv")
 mortgage_rate_15_year <- readr::read_csv("data/mortgage_rates_15_year.csv")
 mortgage_rate_30_year <- readr::read_csv("data/mortgage_rates_30_year.csv")
 ny_median_household_income <- readr::read_csv("data/new_york_median_household_income.csv")
 national_median_household_income <- readr::read_csv("data/national_median_household_income.csv")
+rental_costs <- readr::read_csv("data/rental_index.csv")
+misdemeanor_offenses <- readr::read_csv("data/misdemeanor-offenses-2000-2024.csv")
+non_seven_major_felonies <- readr::read_csv("data/non-seven-major-felony-offenses-2000-2024.csv")
+major_felonies <- readr::read_csv("data/seven-major-felony-offenses-2000-2024.csv")
 ```
 
 ```{r housing data cleaning}
@@ -82,6 +86,16 @@ ny_mean_sfr_value <- mean_sfr_value %>%
     names_to = "Date",
     values_to = "mean_sfr_value") %>% 
   dplyr::select(-RegionName) %>% 
+  dplyr::mutate(
+    Date = as.Date(Date, "%Y-%m-%d"), 
+    Date = lubridate::floor_date(Date, "month"))
+
+rental_costs <- rental_costs %>% 
+  dplyr::filter(RegionName == "New York, NY") %>% 
+  dplyr::select(-RegionID, -SizeRank, -RegionType, -StateName) %>% 
+  tidyr::pivot_longer(cols = -RegionName,
+    names_to = "Date",
+    values_to = "mean_rental_price") %>% 
   dplyr::mutate(
     Date = as.Date(Date, "%Y-%m-%d"), 
     Date = lubridate::floor_date(Date, "month"))
@@ -155,7 +169,9 @@ ny_median_household_income_monthly <- tidyr::expand_grid(
   Year = ny_median_household_income_yearly$Year,
   Month = 1:12) %>% 
   dplyr::left_join(ny_median_household_income_yearly, by = "Year") %>% 
-  dplyr::mutate(Date = as.Date(sprintf("%d-%02d-01", Year, Month))) %>% 
+  dplyr::mutate(
+    Date = as.Date(sprintf("%d-%02d-01", Year, Month)),
+    ny_median_hh_income = ny_median_hh_income/12) %>% 
   dplyr::select(Date, ny_median_hh_income) %>% 
   dplyr::arrange(Date)
 
@@ -178,21 +194,92 @@ national_median_household_income_monthly <- tidyr::expand_grid(
   Year = national_median_household_income_yearly$Year,
   Month = 1:12) %>% 
   dplyr::left_join(national_median_household_income_yearly, by = "Year") %>% 
-  dplyr::mutate(Date = as.Date(sprintf("%d-%02d-01", Year, Month))) %>% 
+  dplyr::mutate(
+    Date = as.Date(sprintf("%d-%02d-01", Year, Month)),
+    national_median_hh_income = national_median_hh_income/12) %>% 
   dplyr::select(Date, national_median_hh_income) %>% 
   dplyr::arrange(Date)
 ```
 
+
+```{r crime data cleaning}
+# pull totals from each data set
+total_misdemeanors <- utils::tail(misdemeanor_offenses, 1)
+total_non_seven_felonies <- utils::tail(non_seven_major_felonies, 1)
+total_major_felonies <- utils::tail(major_felonies, 1)
+
+# add category identifiers
+total_misdemeanors <- total_misdemeanors %>%
+  dplyr::mutate(category = "misdemeanor_offenses") %>% 
+  tidyr::pivot_longer(
+    cols = dplyr::starts_with("20"),
+    names_to = "date",
+    values_to = "misdemeanor_offenses"
+  ) %>% 
+  dplyr::select(-OFFENSE, -category)
+
+total_non_seven_felonies <- total_non_seven_felonies %>%
+  dplyr::mutate(category = "non_seven_major_felonies") %>%
+  tidyr::pivot_longer(
+    cols = dplyr::starts_with("20"),
+    names_to = "date",
+    values_to = "non_seven_major_felonies"
+  ) %>% 
+  dplyr::select(-OFFENSE, -category)
+
+total_major_felonies <- total_major_felonies %>%
+  dplyr::mutate(category = "major_felonies") %>% 
+  tidyr::pivot_longer(
+    cols = dplyr::starts_with("20"),
+    names_to = "date",
+    values_to = "major_felonies"
+  ) %>% 
+  dplyr::select(-OFFENSE, -category)
+
+# join all crime data
+total_crime_commissions <- total_misdemeanors %>% 
+  dplyr::left_join(total_non_seven_felonies, by = "date") %>% 
+  dplyr::left_join(total_major_felonies, by = "date") %>% 
+  dplyr::mutate(Date = as.Date(paste0(substr(date, 1, 4), "-01-01")))
+
+
+total_crime_commissions_yearly <- total_crime_commissions %>%
+  dplyr::select(-date) %>% 
+  dplyr::mutate(Year = lubridate::year(Date)) %>% 
+  dplyr::select(Year, non_seven_major_felonies, major_felonies, misdemeanor_offenses) %>% 
+  dplyr::group_by(Year)
+
+# adjust to monthly and join financial data back                   
+total_crime_commissions_monthly <- tidyr::expand_grid(
+  Year = total_crime_commissions_yearly$Year,
+  Month = 1:12) %>% 
+  dplyr::left_join(total_crime_commissions_yearly, by = "Year") %>% 
+  dplyr::mutate(
+    Date = as.Date(sprintf("%d-%02d-01", Year, Month)),
+    non_seven_major_felonies = non_seven_major_felonies/12,
+    major_felonies = major_felonies/12,
+    misdemeanor_offenses = misdemeanor_offenses/12) %>% 
+  dplyr::select(Date, non_seven_major_felonies, major_felonies, misdemeanor_offenses) %>% 
+  dplyr::arrange(Date)
+
+```
+
+
 ```{r data join}
 # join data sets
-ny_housing_data <- ny_median_sale_price %>% 
+ny_housing_data <- ny_mean_sfr_value %>% 
   dplyr::left_join(ny_new_construction_sales, by = "Date") %>% 
-  dplyr::left_join(ny_mean_sfr_value, by = "Date") %>% 
+  dplyr::left_join(ny_median_sale_price, by = "Date") %>% 
   dplyr::left_join(interest_rates, by = "Date") %>% 
   dplyr::left_join(mortgage_rate_15_year, by = "Date") %>% 
   dplyr::left_join(mortgage_rate_30_year, by = "Date") %>% 
   dplyr::left_join(ny_median_household_income_monthly, by = "Date") %>% 
-  dplyr::left_join(national_median_household_income_monthly, by = "Date")
+  dplyr::left_join(national_median_household_income_monthly, by = "Date") %>% 
+  dplyr::left_join(rental_costs, by = "Date") %>% 
+  dplyr::left_join(total_crime_commissions_monthly, by = "Date")
+
+ny_housing_data <- ny_housing_data %>% 
+  dplyr::select(-RegionName.x, - RegionName.y)
 
 # Convert Date from character to Date class
 ny_housing_data$Date <- as.Date(ny_housing_data$Date)
@@ -203,7 +290,7 @@ ny_housing_data_clean <- na.omit(ny_housing_data)
 # remove construction data - we have a limited data set to begin with, and we should remove 
 # this variable 
 ny_housing_data_reduced <- ny_housing_data %>% 
-  dplyr::select(-new_construction_sales, -RegionName)
+  dplyr::select(-new_construction_sales)
 
 ny_housing_data_reduced <- stats::na.omit(ny_housing_data_reduced)
 ```
