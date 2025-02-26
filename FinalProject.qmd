@@ -42,7 +42,7 @@ for (pkg in required_packages) {
 
 ```{r data import}
 # import data sets
-median_sale_price <- readr::read_csv("data/median_sale_price.csv")
+median_sale_price <- readr::read_csv("data/median_home_price.csv")
 new_construction_sales <- readr::read_csv("data/Metro_new_con_sales_count_raw_uc_sfr_month.csv")
 mean_sfr_value <- readr::read_csv("data/home_value.csv")
 interest_rates <- readr::read_csv("data/fed_interest_rates.csv")
@@ -59,8 +59,8 @@ major_felonies <- readr::read_csv("data/seven-major-felony-offenses-2000-2024.cs
 ```{r housing data cleaning}
 # remove columns and pivot longer
 ny_median_sale_price <- median_sale_price %>% 
-  dplyr::filter(RegionName == "New York, NY") %>% 
-  dplyr::select(-RegionID, -SizeRank, -RegionType, -StateName) %>% 
+  dplyr::filter(RegionName == "New York") %>% 
+  dplyr::select(-RegionID, -SizeRank, -RegionType, -StateName, -CountyName, -Metro, -State) %>% 
   tidyr::pivot_longer(cols = -RegionName,
     names_to = "Date",
     values_to = "median_sale_price") %>% 
@@ -268,18 +268,13 @@ total_crime_commissions_monthly <- tidyr::expand_grid(
 ```{r data join}
 # join data sets
 ny_housing_data <- ny_mean_sfr_value %>% 
-  dplyr::left_join(ny_new_construction_sales, by = "Date") %>% 
   dplyr::left_join(ny_median_sale_price, by = "Date") %>% 
   dplyr::left_join(interest_rates, by = "Date") %>% 
   dplyr::left_join(mortgage_rate_15_year, by = "Date") %>% 
   dplyr::left_join(mortgage_rate_30_year, by = "Date") %>% 
   dplyr::left_join(ny_median_household_income_monthly, by = "Date") %>% 
   dplyr::left_join(national_median_household_income_monthly, by = "Date") %>% 
-  dplyr::left_join(rental_costs, by = "Date") %>% 
   dplyr::left_join(total_crime_commissions_monthly, by = "Date")
-
-ny_housing_data <- ny_housing_data %>% 
-  dplyr::select(-RegionName.x, - RegionName.y)
 
 # Convert Date from character to Date class
 ny_housing_data$Date <- as.Date(ny_housing_data$Date)
