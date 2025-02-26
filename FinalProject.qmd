@@ -25,15 +25,19 @@ format:
 
 ```{r libraries}
 # library chunk
-#install.packages("dplyr")
-#install.packages("readr")
-#install.packages("tidyverse")
-#install.packages("lubridate")
-library(dplyr)
-library(readr)
-library(tidyverse)
-library(lmtest)
-library(lubridate)
+required_packages <- c("dplyr", "readr", "tidyverse", "lmtest", "lubridate", "glmnet", "pls")
+
+# Function to check if a package is installed
+install_and_load <- function(package) {
+  if (!require(package, character.only = TRUE)) {
+    utils::install.packages(package, dependencies = TRUE)
+    library(package, character.only = TRUE)
+  }
+}
+
+for (pkg in required_packages) {
+  install_and_load(pkg)
+}
 ```
 
 ```{r data import}
@@ -195,6 +199,13 @@ ny_housing_data$Date <- as.Date(ny_housing_data$Date)
 
 # get rid of NA values
 ny_housing_data_clean <- na.omit(ny_housing_data)
+
+# remove construction data - we have a limited data set to begin with, and we should remove 
+# this variable 
+ny_housing_data_reduced <- ny_housing_data %>% 
+  dplyr::select(-new_construction_sales, -RegionName)
+
+ny_housing_data_reduced <- stats::na.omit(ny_housing_data_reduced)
 ```
 
 
@@ -218,6 +229,27 @@ plot(lm.fit, which = 1)
 #checking for serial correlation
 dwtest(lm.fit)
 
+```
+
+
+```{r reduced model eda}
+# plot a reduced lm model
+reduced_lm_model <- stats::lm(median_sale_price ~ ., data = ny_housing_data_reduced)
+plot(reduced_lm_model, which = 2)
+hist(reduced_lm_model$residuals)
+
+#heteroskedasticity check
+plot(reduced_lm_model$residuals ~ reduced_lm_model$fitted.values, 
+      main = "Heteroskedastic Residuals", 
+      xlab = "Predicted Values", 
+      ylab = "Residuals")
+abline(h=0, col="red")
+
+#residuals vs fitted plot
+plot(reduced_lm_model, which = 1)
+
+#checking for serial correlation
+dwtest(reduced_lm_model)
 ```
 
 ## Descriptive Analytics 
@@ -252,6 +284,49 @@ fit.lag <- lm(median_sale_price ~ Date + Date.L6 + Date.L12 + new_construction_s
 summary(fit.lag)
 
 ```
+
+
+```{r reduced model lagging}
+ny_housing_data_reduced <- ny_housing_data_reduced %>%
+  dplyr::arrange(Date) %>%
+  dplyr::mutate(
+    Date.L6 = Date %m+% months(-6),  # Lag by 6 months
+    Date.L12 = Date %m+% months(-12) # Lag by 12 months
+  )
+
+#regression with lagged variables
+reduced_lm_model_lag <- stats::lm(median_sale_price ~ ., data = ny_housing_data_reduced)
+
+summary(reduced_lm_model_lag)
+
+```
+
+```{r reduced WLS model}
+# calculate WLS model weights
+reduced_lm_model_wls_weights <- 1 / stats::fitted(stats::lm(abs(stats::residuals(reduced_lm_model_lag)) ~ stats::fitted(reduced_lm_model_lag)))^2
+
+# fit a WLS model
+reduced_wls_model <- stats::lm(median_sale_price ~., data = ny_housing_data_reduced,
+                              weights = reduced_lm_model_wls_weights)
+
+summary(reduced_wls_model)
+
+
+```
+
+```{r reduced stepwise model}
+# fit a null model
+reduced_lm_model_null <- stats::lm(median_sale_price ~ 1, data = ny_housing_data_reduced)
+
+# run a stepwise regression
+reduced_lm_model_step <- stats::step(reduced_lm_model_null, direction = "both", 
+                                    scope = stats::formula(reduced_lm_model_lag))
+
+# based on the stepwise regression, we should use the formula
+# median_sale_price ~ mean_sfr_value + ny_median_hh_income + mortgage_rate_15_year
+# however I think we need to include the mortgage_rate_30_year as well
+```
+
 ## Transformation in Preparation for a Regression
 
 It seems that lagging by 6 months is not significant, but a 12 month lag (1 year) is significant. We should check if the serial correlation problem is corrected.
@@ -266,10 +341,24 @@ abline(0,0, col="red")
 
 dwtest(fit.lag)
 ```
+
 ## Data Preparation
 
 From preliminary inspection of the plot, it does not seem that the serial correlation problem has been resolved. Instead, it seems to have worsened. The DW test also still confirms that we have positive serial correlation.
+
 ## Modeling
+
+```{r pcr modeling}
+pcr_model <- pls::pcr(median_sale_price ~ ., data = ny_housing_data_reduced, 
+                      scale = TRUE, validation = "CV")
+summary(pcr_model)
+pls::validationplot(pcr_model)
+```
+
+```{r bootstrap model}
+
+
+```
 
 ## Analysis
 
