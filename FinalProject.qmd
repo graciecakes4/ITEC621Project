@@ -23,6 +23,10 @@ format:
 #    include-after-body: footer.html # Custom footer
 ---
 
+# Library and Package installation
+
+In this section we assigned a vector variable of the packages we used for this project. There is a function to check for the packages and install and library them if they are not already installed and libraried.
+
 ```{r libraries}
 # library chunk
 required_packages <- c("dplyr", "readr", "tidyverse", "lmtest", "lubridate", "glmnet", "pls", "readxl")
@@ -40,6 +44,27 @@ for (pkg in required_packages) {
 }
 ```
 
+# Data Gathering
+
+We gathered our data from the following sources:
+
+-   [Zillow](https://www.zillow.com/research/data/)
+-   Median Home Sale Price - New Construction Sales
+-   Mean Home Value - Rental Cost Index
+-   [Federal Reserve](https://fred.stlouisfed.org/)
+    -   Federal Reserve Interest Rates
+    -   15 Year Mortgage Rates
+    -   30 Year Mortgage Rates
+    -   NY Median Household Income
+    -   National Median Household Income
+    -   Unemployment Data
+-   [New York Police Department](https://www.nyc.gov/site/nypd/stats/crime-statistics/historical.page)
+    -   Major Felony Offenses
+    -   Non-Major Felony Offenses
+    -   Misdemenaor Offenses
+
+Gathering data from a variety of sources allowed us to create a comprehensive analysis of the housing market trends in New York City. Combining additional non-financial data helps to us understand the factors that influence housing prices and crime rates. This analysis can help policymakers, investors, and residents make informed decisions about their financial and housing situations.
+
 ```{r data import}
 # import data sets
 median_sale_price <- readr::read_csv("data/median_home_price.csv")
@@ -54,7 +79,23 @@ rental_costs <- readr::read_csv("data/rental_index.csv")
 misdemeanor_offenses <- readr::read_csv("data/misdemeanor-offenses-2000-2024.csv")
 non_seven_major_felonies <- readr::read_csv("data/non-seven-major-felony-offenses-2000-2024.csv")
 major_felonies <- readr::read_csv("data/seven-major-felony-offenses-2000-2024.csv")
+unemployment_data <- readr::read_csv("data/unemployment_data.csv")
 ```
+
+# Data Cleaning
+
+Our data required extensive cleaning and formatting, despite the records being very clean.
+
+-   **Dates** - We had to manipulate the date columns for all data sets to assure that all date formats and dates we the same to facilitate data merging. Some data sets were set for the last day of the month and others to the first day of the month. We decided to use the first day of the month which required us to use the `lubridate` package to adjust dates within the same months. There were other data that were yearly, median household income and crime data, which we computed to monthly values and distributed those throughout the months of the year. While this does not create a perfect representation of the data since there isn't a way to capture a trend, it helps us in an overall time series analysis as opposed to discluding it based on its periodicity.
+
+-   **Dimensions** - Many of the data sets were wide data sets that we had to pivot to long data sets to assign variables to each column and have the `Date` as the joining column, once properly formatted.
+
+-   **Missing Values** - We removed any NA values from our data set. This lead us to removing variables `New Construction Sales` and `Rental Cost Index` because there wasn't enough data points to thoroughly model. Removing these two variables allowed us to have over 300 observations per variable as oppopsed to \~ 70 by retaining them.
+
+-   **Economic Crises** - We included dummy variables for the 2008 financial crisis and the COVID-19 pandemic. We imputed a 0 for months that were not included in these crises and 1 if they were in these crises. We hope that this will capture some of the outside impacts on housing prices that would not be otherwise captured without the inclusion of dummy variables.
+
+    -   *2008 Financial Crisis* - 2007-12-01 - 2009-06-01
+    -   *COVID-19 Pandemic* - 2020-03-01 - 2023-05-01
 
 ```{r housing data cleaning}
 # remove columns and pivot longer
@@ -100,7 +141,6 @@ rental_costs <- rental_costs %>%
     Date = as.Date(Date, "%Y-%m-%d"), 
     Date = lubridate::floor_date(Date, "month"))
 ```
-
 
 ```{r financial data cleaning}
 # rename date and variable columns
@@ -201,8 +241,7 @@ national_median_household_income_monthly <- tidyr::expand_grid(
   dplyr::arrange(Date)
 ```
 
-
-```{r crime data cleaning}
+```{r other data cleaning}
 # pull totals from each data set
 total_misdemeanors <- utils::tail(misdemeanor_offenses, 1)
 total_non_seven_felonies <- utils::tail(non_seven_major_felonies, 1)
@@ -262,8 +301,41 @@ total_crime_commissions_monthly <- tidyr::expand_grid(
   dplyr::select(Date, non_seven_major_felonies, major_felonies, misdemeanor_offenses) %>% 
   dplyr::arrange(Date)
 
+# manipulate unemployement data
+unemployment_data <- unemployment_data %>% 
+  dplyr::mutate(Date = as.Date(observation_date)) %>% 
+  dplyr::rename(unemployment_rate = NYUR) %>% 
+  dplyr::select(-observation_date) %>% 
+  dplyr::arrange(Date)
+
 ```
 
+# Data Join
+
+Once our data manipulation was complete, we joined the data set to give us a final count of 14 variables and 300 observations.
+
+-   Date
+-   mean_sfr_value - estimated mean value of homes
+-   median_sale_price - median sale price of homes in a specified month
+-   Fed_Interest_Rate - Federal Reserve Interest Rate
+    -   calculated by monthly average - $(week_1 + ... + week_n) / n$ for each month
+-   mortgage_rate_15_year - average 15 year mortgage rate in a specified month
+-   mortgage_rate_30_year - average 30 year mortgage rate in a specified month
+-   ny_median_hh_income - median household income for residents of New York State
+    -   calculated as n/12
+-   national_median_hh_income - median household income for residents of the United States
+    -   calculated as n/12
+-   non_seven_major_felonies - non violent felony commissions in NYC
+    -   calculated as n/12
+-   major_felonies - violent felony commissions in NYC
+    -   calculated as n/12
+-   misdemeanor_offenses - misdemeanor commissions in NYC
+    -   calculated as n/12
+-   unemployment_rate - national unemployemnt rate in a specified month
+-   housing_crisis - 2008 financial crisis dummy variable
+    -   0 = non-crisis, 1 = crisis
+-   covid_pandemic - COVID-19 pandemic dummy variable
+    -   0 = non-pandemic, 1 = pandemic
 
 ```{r data join}
 # join data sets
@@ -274,67 +346,45 @@ ny_housing_data <- ny_mean_sfr_value %>%
   dplyr::left_join(mortgage_rate_30_year, by = "Date") %>% 
   dplyr::left_join(ny_median_household_income_monthly, by = "Date") %>% 
   dplyr::left_join(national_median_household_income_monthly, by = "Date") %>% 
-  dplyr::left_join(total_crime_commissions_monthly, by = "Date")
+  dplyr::left_join(total_crime_commissions_monthly, by = "Date") %>% 
+  dplyr::left_join(unemployment_data, by = "Date") %>% 
+  dplyr::mutate(housing_crisis = ifelse(Date >= as.Date("2007-12-01") &
+                                        Date <= as.Date("2009-06-01"), 1, 0)) %>% 
+  dplyr::mutate(covid_pandemic = ifelse(Date >= as.Date("2020-03-01") &
+                                        Date <= as.Date("2023-05-01"), 1, 0)) %>% 
+  dplyr::select(-RegionName)
 
 # Convert Date from character to Date class
 ny_housing_data$Date <- as.Date(ny_housing_data$Date)
 
-# get rid of NA values
-ny_housing_data_clean <- na.omit(ny_housing_data)
-
-# remove construction data - we have a limited data set to begin with, and we should remove 
-# this variable 
-ny_housing_data_reduced <- ny_housing_data %>% 
-  dplyr::select(-new_construction_sales)
-
-ny_housing_data_reduced <- stats::na.omit(ny_housing_data_reduced)
-```
-
-
-```{r descriptive_analytics}
-
-#qqplot and histogram for residuals
-options(scipen=4)
-lm.fit <- lm(median_sale_price ~ Date + new_construction_sales + mean_sfr_value + Fed_Interest_Rate + mortgage_rate_15_year + mortgage_rate_30_year + ny_median_hh_income + national_median_hh_income, 
-             data = ny_housing_data_clean)
-par(mar=c(4,4,2,2))
-plot(lm.fit, which = 2)
-hist(lm.fit$residuals)
-
-#heteroskedasticity check
-plot(lm.fit$residuals ~ lm.fit$fitted.values, main = "Heteroskedastic Residuals", xlab = "Predicted Values", ylab = "Residuals")
-abline(h=0, col="red")
-
-#residuals vs fitted plot
-plot(lm.fit, which = 1)
-
-#checking for serial correlation
-dwtest(lm.fit)
+# remove NA values
+ny_housing_data_clean <- stats::na.omit(ny_housing_data)
 
 ```
 
-
-```{r reduced model eda}
+```{r eda and linear modeling}
 # plot a reduced lm model
-reduced_lm_model <- stats::lm(median_sale_price ~ ., data = ny_housing_data_reduced)
-plot(reduced_lm_model, which = 2)
-hist(reduced_lm_model$residuals)
+lm_model <- stats::lm(median_sale_price ~ ., data = ny_housing_data_clean)
+graphics::plot(lm_model, which = 2)
+graphics::hist(lm_model$residuals)
+summary(lm_model)
 
 #heteroskedasticity check
-plot(reduced_lm_model$residuals ~ reduced_lm_model$fitted.values, 
+graphics::plot(lm_model$residuals ~ lm_model$fitted.values, 
       main = "Heteroskedastic Residuals", 
       xlab = "Predicted Values", 
       ylab = "Residuals")
-abline(h=0, col="red")
+graphics::abline(h=0, col="red")
 
 #residuals vs fitted plot
-plot(reduced_lm_model, which = 1)
+graphics::plot(lm_model, which = 1)
 
 #checking for serial correlation
-dwtest(reduced_lm_model)
+lmtest::dwtest(lm_model)
 ```
 
-## Descriptive Analytics 
+# Descriptive Analytics
+
 We can see from the qqplot that the data deviates from the qqline. It is somewhat following the line from about -0.8 to 1, but deviates at each end. At the lowest and upper ends of the Standardized residuals, the deviation becomes more apparent. Looking at the histogram, it seems that it skews to the right slightly. Based on these two plots, I would conclude that the residuals are not normally distributed.
 
 The "Heteroskedastic Residuals" plot clearly shows heteroskedasticity is present in our data. When plotting Residuals vs Fitted, it clearly is not homoskedastic, and the wave indicates a cyclical pattern, which makes sense since we have time series data.
@@ -349,63 +399,154 @@ Our initial set of predictors will include: Date, end of the month for every mon
 
 Since we have concluded that our data suffers from serial correlation, we must transform our variables and lag the data. Therefore, we will use logistic regression to build our model.
 
-```{r lagging to correct for serial correlation}
+## Model Method 1 - OLS
 
-#create lagged variables
+### Characteristics
 
+**Variables Included**
+
+-   `Date`
+-   `mean_sfr_value`
+-   `Fed_Interest_Rate`
+-   `mortgage_rate_15_year`
+-   `mortgage_rate_30_year`
+-   `ny_median_hh_income`
+-   `major_felonies`
+-   `misdemeanor_offenses`
+-   `unemployment_rate`
+-   `housing_crisis`
+-   `covid_pandemic`
+
+**Variables Excluded**
+
+-   `national_median_hh_income`
+-   `non_seven_major_felonies`
+-   `Date.L1`
+-   `Date.L3`
+
+### Initial Findings:
+
+-   Heteroskedasticity - There was evidence of heteroskedasticity in the residuals, as shown by the "Heteroskedastic Residuals" plot, indicating that the error variance was not constant. Serial correlation was detected using the Durbin-Watson test, with positive correlation in the residuals due to the time series nature of the data.
+
+-   Nonnormal distribution of residuals - The residuals deviated from normality, as seen in the Q-Q plot and histogram, which suggested non-normal distribution.
+
+### Challenges and Adjustments:
+
+-   Lagging - We tried transforming and lagging date-related variables but found significant correlation persisted. We also adjusted for different lagging periods.
+-   Second Model Choice - We will use a Weighted Least Squares (WLS) as an alternative to manage non-constant variance more effectively as our second model method. We will combine this with stepwise regression to further enhance variable selection.
+
+```{r linear model lagging}
 ny_housing_data_clean <- ny_housing_data_clean %>%
-  arrange(Date) %>%
-  mutate(
-    Date.L6 = Date %m+% months(-6),  # Lag by 6 months
-    Date.L12 = Date %m+% months(-12) # Lag by 12 months
-  )
-
-#regression with lagged variables
-fit.lag <- lm(median_sale_price ~ Date + Date.L6 + Date.L12 + new_construction_sales + mean_sfr_value, data = ny_housing_data_clean)
-
-summary(fit.lag)
-
-```
-
-
-```{r reduced model lagging}
-ny_housing_data_reduced <- ny_housing_data_reduced %>%
   dplyr::arrange(Date) %>%
   dplyr::mutate(
-    Date.L6 = Date %m+% months(-6),  # Lag by 6 months
-    Date.L12 = Date %m+% months(-12) # Lag by 12 months
+    Date.L1 = Date %m+% months(-1),  # Lag by 1 month
+    Date.L3 = Date %m+% months(-3) # Lag by 3 months
   )
 
 #regression with lagged variables
-reduced_lm_model_lag <- stats::lm(median_sale_price ~ ., data = ny_housing_data_reduced)
+lm_model_lag <- stats::lm(median_sale_price ~ ., data = ny_housing_data_clean)
 
-summary(reduced_lm_model_lag)
+summary(lm_model_lag)
 
 ```
+
+```{r final OLS Model}
+final_lm_model <- stats::lm(median_sale_price ~ - Date + mean_sfr_value + 
+                            Fed_Interest_Rate + mortgage_rate_15_year + mortgage_rate_30_year + ny_median_hh_income + major_felonies + misdemeanor_offenses + unemployment_rate + housing_crisis + covid_pandemic, data = ny_housing_data_clean)
+
+summary(final_lm_model)
+graphics::plot(final_lm_model, which = 2)
+graphics::hist(final_lm_model$residuals)
+
+#heteroskedasticity check
+graphics::plot(final_lm_model$residuals ~ final_lm_model$fitted.values, 
+      main = "Heteroskedastic Residuals", 
+      xlab = "Predicted Values", 
+      ylab = "Residuals")
+graphics::abline(h=0, col="red")
+
+#residuals vs fitted plot
+graphics::plot(final_lm_model, which = 1)
+lmtest::dwtest(final_lm_model)
+```
+
+## Model 2 - WLS Stepwise Regression
+
+### Characteristics
+
+**Variables Included**
+
+-   `Date`
+-   `mean_sfr_value`
+-   `Fed_Interest_Rate`
+-   `mortgage_rate_15_year`
+-   `mortgage_rate_30_year`
+-   `ny_median_hh_income`
+-   `major_felonies`
+-   `misdemeanor_offenses`
+-   `unemployment_rate`
+-   `housing_crisis`
+-   `covid_pandemic`
+
+**Variables Excluded**
+
+-   `national_median_hh_income`
+-   `non_seven_major_felonies`
+-   `Date.L1`
+-   `Date.L3`
+
+### Initial Findings
+
+-   Summary of Findings - The WLS model helped moderate the impact of variance differences. However, the persistent issue of serial correlation needed further examination.
+-   Stepwise Variable Selection - The stepwise regression confirmed the statistical significance of all variables, indicating that they all contribute to the prediction of median sale price.
+
+### Challenges and Adjustments
+
+-   Heteroskedasticity - We will consider using a logarithmic transformation to adjust variables that might be having an imbalanced affect on the model - particularly the yearly data that we distributed monthly.
 
 ```{r reduced WLS model}
 # calculate WLS model weights
-reduced_lm_model_wls_weights <- 1 / stats::fitted(stats::lm(abs(stats::residuals(reduced_lm_model_lag)) ~ stats::fitted(reduced_lm_model_lag)))^2
+lm_model_wls_weights <- 1 / stats::fitted(stats::lm(abs(stats::residuals(lm_model_lag)) ~ stats::fitted(lm_model_lag)))^2
 
 # fit a WLS model
-reduced_wls_model <- stats::lm(median_sale_price ~., data = ny_housing_data_reduced,
-                              weights = reduced_lm_model_wls_weights)
+wls_model <- stats::lm(median_sale_price ~., data = ny_housing_data_clean,
+                              weights = lm_model_wls_weights)
 
-summary(reduced_wls_model)
+summary(wls_model)
 
 ```
 
-```{r reduced stepwise model}
+```{r stepwise regression}
 # fit a null model
-reduced_lm_model_null <- stats::lm(median_sale_price ~ 1, data = ny_housing_data_reduced)
+wls_model_null <- stats::lm(median_sale_price ~ 1, data = ny_housing_data_clean)
 
 # run a stepwise regression
-reduced_lm_model_step <- stats::step(reduced_lm_model_null, direction = "both", 
-                                    scope = stats::formula(reduced_lm_model_lag))
+wls_model_step <- stats::step(wls_model_null, direction = "both", 
+                              scope = stats::formula(wls_model))
 
-# based on the stepwise regression, we should use the formula
-# median_sale_price ~ mean_sfr_value + ny_median_hh_income + mortgage_rate_15_year
-# however I think we need to include the mortgage_rate_30_year as well
+summary(wls_model_step)
+graphics::plot(wls_model_step, which = 2)
+graphics::hist(wls_model_step$residuals)
+
+#heteroskedasticity check
+graphics::plot(wls_model_step$residuals ~ wls_model_step$fitted.values, 
+      main = "Heteroskedastic Residuals", 
+      xlab = "Predicted Values", 
+      ylab = "Residuals")
+graphics::abline(h=0, col="red")
+
+#residuals vs fitted plot
+graphics::plot(wls_model_step, which = 1)
+
+```
+
+# Model 3 - Bootstrap
+
+```{r bootsrap model}
+
+# Will work on this for final project
+
+
 ```
 
 ## Transformation in Preparation for a Regression
@@ -421,24 +562,6 @@ plot(ny_housing_data_clean$Date[13:nrow(ny_housing_data_clean)],
 abline(0,0, col="red")
 
 dwtest(fit.lag)
-```
-
-## Data Preparation
-
-From preliminary inspection of the plot, it does not seem that the serial correlation problem has been resolved. Instead, it seems to have worsened. The DW test also still confirms that we have positive serial correlation.
-
-## Modeling
-
-```{r pcr modeling}
-pcr_model <- pls::pcr(median_sale_price ~ ., data = ny_housing_data_reduced, 
-                      scale = TRUE, validation = "CV")
-summary(pcr_model)
-pls::validationplot(pcr_model)
-```
-
-```{r bootstrap model}
-
-
 ```
 
 ## Analysis
