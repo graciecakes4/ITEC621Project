@@ -86,11 +86,11 @@ unemployment_data <- readr::read_csv("data/unemployment_data.csv")
 
 Our data required extensive cleaning and formatting, despite the records being very clean.
 
--   **Dates** - We had to manipulate the date columns for all data sets to assure that all date formats and dates we the same to facilitate data merging. Some data sets were set for the last day of the month and others to the first day of the month. We decided to use the first day of the month which required us to use the `lubridate` package to adjust dates within the same months. There were other data that were yearly, median household income and crime data, which we computed to monthly values and distributed those throughout the months of the year. While this does not create a perfect representation of the data since there isn't a way to capture a trend, it helps us in an overall time series analysis as opposed to discluding it based on its periodicity.
+-   **Dates** - We had to manipulate the date columns for all data sets to assure that all date formats and dates we the same to facilitate data merging. Some data sets were set for the last day of the month and others to the first day of the month. We decided to use the first day of the month which required us to use the `lubridate` package to adjust dates within the same months. There were other data that were yearly, median household income and crime data, which we computed to monthly values and distributed those throughout the months of the year. While this does not create a perfect representation of the data since there isn't a way to capture a trend, it helps us in an overall time series analysis as opposed to discarding it based on its periodicity.
 
 -   **Dimensions** - Many of the data sets were wide data sets that we had to pivot to long data sets to assign variables to each column and have the `Date` as the joining column, once properly formatted.
 
--   **Missing Values** - We removed any NA values from our data set. This lead us to removing variables `New Construction Sales` and `Rental Cost Index` because there wasn't enough data points to thoroughly model. Removing these two variables allowed us to have over 300 observations per variable as oppopsed to \~ 70 by retaining them.
+-   **Missing Values** - We removed any NA values from our data set. This lead us to removing variables `New Construction Sales` and `Rental Cost Index` because there wasn't enough data points to thoroughly model. Removing these two variables allowed us to have over 300 observations per variable as opposed to \~ 70 by retaining them.
 
 -   **Economic Crises** - We included dummy variables for the 2008 financial crisis and the COVID-19 pandemic. We imputed a 0 for months that were not included in these crises and 1 if they were in these crises. We hope that this will capture some of the outside impacts on housing prices that would not be otherwise captured without the inclusion of dummy variables.
 
@@ -331,7 +331,7 @@ Once our data manipulation was complete, we joined the data set to give us a fin
     -   calculated as n/12
 -   misdemeanor_offenses - misdemeanor commissions in NYC
     -   calculated as n/12
--   unemployment_rate - national unemployemnt rate in a specified month
+-   unemployment_rate - national unemployment rate in a specified month
 -   housing_crisis - 2008 financial crisis dummy variable
     -   0 = non-crisis, 1 = crisis
 -   covid_pandemic - COVID-19 pandemic dummy variable
@@ -387,12 +387,9 @@ ggpairs(ny_housing_data_clean)
 
 ```
 
-
-
 ## OLS or Logistic Regression
 
 Since we have concluded that our data suffers from serial correlation, we must transform our variables and lag the data. Therefore, we will use logistic regression to build our model.
-
 
 ## Model Method 1 - OLS
 
