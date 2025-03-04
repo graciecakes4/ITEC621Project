@@ -565,32 +565,32 @@ graphics::plot(wls_model_step, which = 1)
 
 ### Model Characteristics
 
-**Variables Included**
--   `Date`
--   `mean_sfr_value`
--   `Fed_Interest_Rate`
--   `mortgage_rate_15_year`
--   `mortgage_rate_30_year`
--   `log(ny_median_hh_income)`
--   `log(major_felonies)`
--   `log(misdemeanor_offenses)`
--   `unemployment_rate`
--   `housing_crisis`
--   `covid_pandemic`
+**Variables Included** 
+
+- `Date` 
+- `mean_sfr_value` 
+- `Fed_Interest_Rate` 
+- `mortgage_rate_15_year` 
+- `mortgage_rate_30_year` 
+- `log(ny_median_hh_income)` 
+- `log(major_felonies)` 
+- `log(misdemeanor_offenses)` 
+- `unemployment_rate` 
+- `housing_crisis` 
+- `covid_pandemic`
 
 **Variables Excluded**
 
 -   `national_median_hh_income`
 -   `non_seven_major_felonies`
 
-
 ### Initial Findings
 
-- Summary of Findings - After we performed log transformations on our variables, we found an increase in $r^2_{Adjusted}$ to `99.66` and a decrease in the standard errors of our coefficients. This suggests that the transformed variables are better suited for modeling. However, this gives us a high likelihood of overfitting our model now. To address this, we will perform a bootstrap model to estimate the standard errors and confidence intervals of our coefficients. 
+-   Summary of Findings - After we performed log transformations on our variables, we found an increase in $r^2_{Adjusted}$ to `99.66` and a decrease in the standard errors of our coefficients. This suggests that the transformed variables are better suited for modeling. However, this gives us a high likelihood of overfitting our model now. To address this, we will perform a bootstrap model to estimate the standard errors and confidence intervals of our coefficients.
 
 ### Challenges and Adjustments
 
-- Overfitting - a likely problem, we computed confidence intervals and standard errors and plotted them. None of the individual predictor CIs cross over the 0 line - meaning we have confidence that they are not ambiguous and can be accurately applied to this model going forward.
+-   Overfitting - a likely problem, we computed confidence intervals and standard errors and plotted them. None of the individual predictor CIs cross over the 0 line - meaning we have confidence that they are not ambiguous and can be accurately applied to this model going forward.
 
 ```{r bootstrap model prep}
 
@@ -610,7 +610,6 @@ reduced_bootstrap_model <- stats::lm(median_sale_price ~ Date + mean_sfr_value +
 summary(reduced_bootstrap_model)   
 
 ```
-
 
 ```{r bootstrapping functions}
 
@@ -640,7 +639,6 @@ bootstrap_results <- boot::boot(data = ny_housing_data_clean , statistic = boots
 summary(bootstrap_results) # view summary statistics
 ```
 
-
 ```{r bootstrap visualization}
 # Calculate CIs for each coefficient
 for (i in 1:length(bootstrap_results$t0)) {
@@ -649,7 +647,6 @@ for (i in 1:length(bootstrap_results$t0)) {
 }
 
 ```
-
 
 ```{r bootstrap ci visualizations}
 
