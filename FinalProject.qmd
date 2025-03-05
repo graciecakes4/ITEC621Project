@@ -754,11 +754,3 @@ model_comparison_table
 
 ```
 
-
-## Transformation in Preparation for a Regression
-
-It seems that lagging by 6 months is not significant, but a 12 month lag (1 year) is significant. We should check if the serial correlation problem is corrected.
-
-## Analysis
-
-## Conclusion
