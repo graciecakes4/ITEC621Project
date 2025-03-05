@@ -36,7 +36,7 @@ In this section we assigned a vector variable of the packages we used for this p
 ```{r libraries}
 
 # library chunk
-required_packages <- c("dplyr", "readr", "tidyverse", "lmtest", "lubridate", "glmnet", "pls", "readxl", "GGally", "boot", "scales", "ggthemes")
+required_packages <- c("dplyr", "readr", "tidyverse", "lmtest", "lubridate", "glmnet", "pls", "readxl", "GGally", "boot", "scales", "ggthemes", "caret")
 
 # Function to check if a package is installed
 install_and_load <- function(package) {
@@ -558,6 +558,7 @@ graphics::abline(h=0, col="red")
 
 #residuals vs fitted plot
 graphics::plot(wls_model_step, which = 1)
+lmtest::dwtest(wls_model_step)
 
 ```
 
@@ -608,6 +609,8 @@ reduced_bootstrap_model <- stats::lm(median_sale_price ~ Date + mean_sfr_value +
                                     data = ny_housing_data_clean)
 # view summary statistics  
 summary(reduced_bootstrap_model)   
+graphics::plot(reduced_bootstrap_model, which = 1)
+lmtest::dwtest(reduced_bootstrap_model)
 
 ```
 
@@ -681,6 +684,76 @@ ggplot2::ggplot(ci_data, ggplot2::aes(x = Parameter, y = Estimate)) +
     ggthemes::theme_economist()
 
 ```
+
+```{r cross validation}
+
+# pull predictors and response variable
+predictors <- cbind(
+  Date = ny_housing_data_clean$Date,
+  mean_sfr_value = ny_housing_data_clean$mean_sfr_value,
+  Fed_Interest_Rate = ny_housing_data_clean$Fed_Interest_Rate,
+  mortgage_rate_15_year = ny_housing_data_clean$mortgage_rate_15_year,
+  mortgage_rate_30_year = ny_housing_data_clean$mortgage_rate_30_year,
+  unemployment_rate = ny_housing_data_clean$unemployment_rate,
+  housing_crisis = ny_housing_data_clean$housing_crisis,
+  covid_pandemic = ny_housing_data_clean$covid_pandemic,
+  log_ny_median_hh_income = log(ny_housing_data_clean$ny_median_hh_income),
+  log_major_felonies = log(ny_housing_data_clean$major_felonies),
+  log_misdemeanor_offenses = log(ny_housing_data_clean$misdemeanor_offenses)
+)
+
+response_variable <- ny_housing_data_clean$median_sale_price
+
+# set CV params
+cv_params <- caret::trainControl(
+  method = "cv",
+  number = 10
+)
+
+cv_model <- caret::train(
+  x = predictors,
+  y = response_variable,
+  method = "lm",
+  trControl = cv_params
+)
+
+cv_model
+
+```
+
+```{r model comparison}
+# model summaries
+reduced_bootstrap_model_summary <- summary(reduced_bootstrap_model)
+final_lm_model_summary <- summary(final_lm_model)
+wls_model_step_summary <- summary(wls_model_step)
+
+# extract metrics
+# calculate RMSE
+reduced_bootstrap_model_rmse <- round(sqrt(mean(reduced_bootstrap_model_summary$residuals^2)),4)
+final_lm_model_rmse <- round(sqrt(mean(final_lm_model_summary$residuals^2)),4)
+wls_model_step_rmse <- round(sqrt(mean(wls_model_step_summary$residuals^2)),4)
+cv_rmse <- round(cv_model$results$RMSE,4)
+
+# extract adj r^2 and dw score
+reduced_bootstrap_model_adjr2 <- round(reduced_bootstrap_model_summary$adj.r.squared,4)
+reduced_bootstrap_model_dw <- round(as.numeric(lmtest::dwtest(reduced_bootstrap_model)$statistic),4)
+final_lm_model_adjr2 <- round(final_lm_model_summary$adj.r.squared, 4)
+final_lm_model_dw <- round(as.numeric(lmtest::dwtest(final_lm_model)$statistic),4)
+wls_model_step_adjr2 <- round(wls_model_step_summary$adj.r.squared,4)
+wls_model_step_dw <- round(as.numeric(lmtest::dwtest(wls_model_step)$statistic), 4)
+
+# create table
+model_comparison_table <- data.frame(
+  Model = c("OLS", "Stepwise WLS", "Bootstrap", "Bootstrap (CV)"),
+  RMSE = c(final_lm_model_rmse, wls_model_step_rmse, reduced_bootstrap_model_rmse, cv_rmse),
+  Adjusted_R2 = c(final_lm_model_adjr2, final_lm_model_adjr2, reduced_bootstrap_model_adjr2, NA),
+  Durbin_Watson = c(final_lm_model_dw, wls_model_step_dw, reduced_bootstrap_model_dw, NA)
+)
+
+model_comparison_table
+
+```
+
 
 ## Transformation in Preparation for a Regression
 
