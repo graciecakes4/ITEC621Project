@@ -632,6 +632,7 @@ bootstrap_function <- function(data, indices) {
 ```
 
 ```{r bootstrapping}
+
 # set seed for reproducibility
 bootstrap_seed <- 45
 set.seed(bootstrap_seed)
@@ -643,6 +644,7 @@ summary(bootstrap_results) # view summary statistics
 ```
 
 ```{r bootstrap visualization}
+
 # Calculate CIs for each coefficient
 for (i in 1:length(bootstrap_results$t0)) {
     ci <- boot.ci(bootstrap_results, type = "perc", index = i)
@@ -722,6 +724,7 @@ cv_model
 ```
 
 ```{r model comparison}
+
 # model summaries
 reduced_bootstrap_model_summary <- summary(reduced_bootstrap_model)
 final_lm_model_summary <- summary(final_lm_model)
@@ -754,3 +757,25 @@ model_comparison_table
 
 ```
 
+
+# Conclusion
+
+Based on the comprehensive analysis presented in the "ITEC 621 Project," which centered on predicting median housing prices in New York City, several key insights and challenges emerged across the various modeling approaches used. The project utilized a substantial dataset compiled from reputable sources such as Zillow, the Federal Reserve, and the New York Police Department, integrating economic indicators like interest rates, housing market values, crime statistics, and socio-economic data, to explore their potential impacts on housing prices.
+
+### Model Assessments
+
+The project applied multiple regression analysis methods to delve deeply into underlying patterns. The Ordinary Least Squares (OLS) model highlighted persistent issues of heteroskedasticity, non-normality in residuals, and serial correlation among residuals. This initial model included variables such as the Federal Reserve Interest Rates and crime statistics but excluded broader income measures, acknowledging their limited explanatory power in the face of local economic conditions.
+
+To address the heteroskedasticity observed, a Weighted Least Squares (WLS) model, enhanced by stepwise regression, was deployed. This adjustment improved the fit by accounting for variance inconsistencies across data, corroborating the significance of all included variables. Furthermore, the refinement depicted how an appropriate model technique could moderate variance-driven distortions, although it still faced the challenge of addressing serial correlation thoroughly.
+
+### Log Transformation and Bootstrapping
+
+To overcome the risk of overfitting associated with high initial R² values in the models, log transformations for variables like median household income and crime rates were conducted. The transformed model revealed an improved Adjusted R² score of 99.66%, suggesting better adaptability to changes in underlying variable distributions. However, to validate model fidelity and mitigate overfitting, a Bootstrapping approach was leveraged, ensuring the robustness of coefficient estimates by calculating confidence intervals and standard errors across multiple resamples.
+
+### Cross-Validation
+
+Finally, cross-validation captured the model’s capability to generalize over unseen data folds, further supporting the model's stability and predictive capability.
+
+### Final Conclusion
+
+Overall, the analysis underscores the complexity of modeling housing prices, particularly in a dynamic and multifaceted economic environment like New York City. The iterative refinement of models—from OLS to WLS and then incorporating bootstrapping—reinforced the importance of adapting methods suitable to data characteristics to yield precise and actionable insights. Despite challenges like serial correlation, which prompt future exploration into time-series models, the project offers a data-driven framework to guide stakeholders in housing sectors on leveraging economic indicators in predictive modeling accurately.
