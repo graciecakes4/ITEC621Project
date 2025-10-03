@@ -94,7 +94,7 @@ By refining these models, we can provide more actionable insights for homebuyers
 
 *Ledia Dobi* ([ld5469a@american.edu](mailto:ld5469a@american.edu))
 
-*Conie O’Malley* ([co1984a@american.edu](mailto:co1984a@american.edu))
+*Grace O’Malley* ([grace.omalley@gwu.edu](mailto:grace.omalley@gwu.edu))
 
 
 
