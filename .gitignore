@@ -54,3 +54,7 @@ rsconnect/
 
 # DS_Store file
 .DS_Store.DS_Store
+
+# data
+data/
+archive/
